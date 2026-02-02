@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String         @unique
+  password      String
+  role          String?
+  emailVerified DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  gymId         String
+  Subscription  Subscription[]
+  gym           Gym            @relation(fields: [gymId], references: [id])
+  Video         Video[]
+
+  @@index([gymId], map: "User_gymId_fkey")
+}
+
+model Gym {
+  id           String         @id @default(cuid())
+  name         String         @unique
+  createdAt    DateTime       @default(now())
+  Subscription Subscription[]
+  users        User[]
+}
+
+model ContactMessage {
+  id        String                @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String
+  fileUrl   String?
+  status    ContactMessage_status @default(NEW)
+  createdAt DateTime              @default(now())
+}
+
+model Subscription {
+  id                String   @id
+  userId            String?
+  gymId             String
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String?
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+  Gym               Gym      @relation(fields: [gymId], references: [id])
+  User              User?    @relation(fields: [userId], references: [id])
+
+  @@index([gymId], map: "Subscription_gymId_fkey")
+  @@index([userId], map: "Subscription_userId_fkey")
+}
+
+model Video {
+  id           String           @id
+  title        String
+  description  String?
+  url          String
+  thumbnail    String?
+  visibility   Video_visibility @default(PRIVATE)
+  uploadedById String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime
+  gymId        String?
+  targetUserId String?
+  User         User?            @relation(fields: [uploadedById], references: [id])
+
+  @@index([uploadedById], map: "Video_uploadedById_fkey")
+}
+
+enum Video_visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ContactMessage_status {
+  NEW
+  READ
+  CLOSED
+}
