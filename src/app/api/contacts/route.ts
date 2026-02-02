@@ -1,9 +1,12 @@
+export const dynamic = "force-dynamic";
+
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // <- Ensure you have prisma client here
 
 export async function GET() {
   try {
-    const messages = await prisma.ContactMessage.findMany({
+    const messages = await prisma.contactMessage.findMany({
       orderBy: {
         createdAt: "desc",
       },
@@ -36,14 +39,14 @@ export async function POST(req: Request) {
     }
 
     // Save to database
-    const saved = await prisma.ContactMessage.create({
+    const saved = await prisma.contactMessage.create({
       data: {
         name,
         email,
         subject,
         message,
         fileUrl,
-        status: "new",
+        status: "NEW",
       },
     });
 

@@ -114,13 +114,13 @@ export default function InstructorPage({
 
               >
                 <video
-  muted
-  preload="metadata"
-  playsInline
-  poster={v.thumbnail ?? undefined}
-  style={styles.video}
-  src={previewSrc}
-/>
+                    muted
+                    preload="metadata"
+                    playsInline
+                    poster={v.thumbnail ?? undefined}
+                    style={styles.video}
+                    src={previewSrc}
+                  />
 
 
 

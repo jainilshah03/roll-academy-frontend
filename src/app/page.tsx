@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { CallToAction } from "@/sections/CallToAction";
@@ -11,7 +11,9 @@ import { Pricing } from "@/sections/Pricing";
 import { ProductShowcase } from "@/sections/ProductShowcase";
 import { Testimonials } from "@/sections/Testimonials";
 
-export default function Home() {
+/* ================= INNER CLIENT COMPONENT ================= */
+
+function HomeContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -27,7 +29,6 @@ export default function Home() {
 
   return (
     <div>
-      {/* Header REMOVED — layout.tsx already contains it */}
       <Hero />
       <LogoTicker />
       <ProductShowcase />
@@ -41,5 +42,15 @@ export default function Home() {
       <CallToAction />
       <Footer />
     </div>
+  );
+}
+
+/* ================= PAGE WRAPPER ================= */
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
