@@ -7,6 +7,12 @@ type Instructor = {
   avatar?: string | null;
 };
 
+function resolveSrc(src?: string | null) {
+  if (!src) return "";
+  if (src.startsWith("http")) return src; // ✅ already absolute (R2)
+  return `${process.env.NEXT_PUBLIC_BACKEND_URL}${src}`; // ✅ relative backend path
+}
+
 export default async function InstructorsPage() {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/instructors`,
@@ -37,7 +43,7 @@ export default async function InstructorsPage() {
             <div style={styles.avatarWrapper}>
               {i.avatar ? (
                 <img
-                  src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${i.avatar}`}
+                  src={resolveSrc(i.avatar)}
                   alt={i.name}
                   style={styles.avatar}
                 />
