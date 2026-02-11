@@ -189,27 +189,31 @@ export default function TrainingPage() {
               {activeVideo.angles ? (
                 Object.entries(activeVideo.angles).map(([angle, src]) => (
                   <video
-                    key={angle}
-                    ref={(el) => {
-                      videoRefs.current[angle] = el;
-                    }}
-                    src={resolveVideoSrc(src)}
-                    preload="auto"
-                    playsInline
-                    muted
-                    controls={angle === activeAngle}
-                    className={`absolute inset-0 w-full h-full ${
-                      angle === activeAngle ? "block" : "hidden"
-                    }`}
-                  />
+                      key={angle}
+                      ref={(el) => {
+                        videoRefs.current[angle] = el;
+                      }}
+                      src={resolveVideoSrc(src)}
+                      preload="auto"
+                      playsInline
+                      muted
+                      controls={angle === activeAngle}
+                      controlsList="nofullscreen"   // ✅ disable native fullscreen
+                      className={`absolute inset-0 w-full h-full ${
+                        angle === activeAngle ? "block" : "hidden"
+                      }`}
+                    />
+
                 ))
               ) : (
                 <video
-                  src={resolveVideoSrc(activeVideo.url)}
-                  controls
-                  preload="metadata"
-                  className="w-full h-full"
-                />
+                    src={resolveVideoSrc(activeVideo.url)}
+                    controls
+                    controlsList="nofullscreen"   // ✅
+                    preload="metadata"
+                    className="w-full h-full"
+                  />
+
               )}
             </div>
 
