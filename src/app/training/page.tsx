@@ -80,7 +80,7 @@ export default function TrainingPage() {
     videoRefs.current = {};
   }
 
-  /* ================= ANGLE SWITCH (SMOOTH) ================= */
+  /* ================= ANGLE SWITCH (ULTRA SMOOTH) ================= */
   function switchAngle(angle: string) {
     if (!activeVideo?.angles || angle === activeAngle) return;
 
@@ -92,42 +92,46 @@ export default function TrainingPage() {
     const wasPlaying = !current.paused;
     const rate = current.playbackRate;
 
-    // Prepare next before switching
+    // Pre-sync BEFORE switching UI
+    next.pause();
     next.currentTime = time;
     next.playbackRate = rate;
 
-    // Switch visible video FIRST (prevents fullscreen glitch)
+    // Switch visible angle
     setActiveAngle(angle);
 
     if (wasPlaying) {
       next.play().catch(() => {});
     }
 
-    // Pause old one after switch (prevents flicker)
-    current.pause();
+    // Pause old one after switch (no flicker)
+    setTimeout(() => current.pause(), 0);
   }
 
-  /* ================= KEEP ANGLES SYNCED ================= */
+  /* ================= KEEP ANGLES PERFECTLY SYNCED ================= */
   useEffect(() => {
     if (!activeVideo?.angles) return;
 
     const active = videoRefs.current[activeAngle];
     if (!active) return;
 
+    let raf: number;
+
     const syncOthers = () => {
       Object.entries(videoRefs.current).forEach(([angle, vid]) => {
         if (!vid || angle === activeAngle) return;
-        vid.currentTime = active.currentTime;
+
+        const drift = Math.abs(vid.currentTime - active.currentTime);
+        if (drift > 0.08) {
+          vid.currentTime = active.currentTime;
+        }
       });
+
+      raf = requestAnimationFrame(syncOthers);
     };
 
-    active.addEventListener("timeupdate", syncOthers);
-    active.addEventListener("seeked", syncOthers);
-
-    return () => {
-      active.removeEventListener("timeupdate", syncOthers);
-      active.removeEventListener("seeked", syncOthers);
-    };
+    raf = requestAnimationFrame(syncOthers);
+    return () => cancelAnimationFrame(raf);
   }, [activeVideo, activeAngle]);
 
   /* ================= KEYBOARD SHORTCUTS ================= */
@@ -137,13 +141,13 @@ export default function TrainingPage() {
 
       const key = e.key.toUpperCase();
 
-      // Angle shortcuts
+      // A/B/C/D → switch angle
       if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
         e.preventDefault();
         switchAngle(key);
       }
 
-      // F → fullscreen container (only if not using native video fullscreen)
+      // F → fullscreen container
       if (key === "F") {
         const container = containerRef.current;
         if (!container) return;
@@ -179,7 +183,6 @@ export default function TrainingPage() {
           Training Library
         </h1>
 
-        {/* ================= ACTIVE VIDEO ================= */}
         {activeVideo && (
           <div className="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
             <div
@@ -189,31 +192,31 @@ export default function TrainingPage() {
               {activeVideo.angles ? (
                 Object.entries(activeVideo.angles).map(([angle, src]) => (
                   <video
-                      key={angle}
-                      ref={(el) => {
-                        videoRefs.current[angle] = el;
-                      }}
-                      src={resolveVideoSrc(src)}
-                      preload="auto"
-                      playsInline
-                      muted
-                      controls={angle === activeAngle}
-                      controlsList="nofullscreen"   // ✅ disable native fullscreen
-                      className={`absolute inset-0 w-full h-full ${
-                        angle === activeAngle ? "block" : "hidden"
-                      }`}
-                    />
-
+                    key={angle}
+                    ref={(el) => {
+                      videoRefs.current[angle] = el;
+                    }}
+                    src={resolveVideoSrc(src)}
+                    preload="auto"
+                    playsInline
+                    muted
+                    controls={angle === activeAngle}
+                    controlsList="nofullscreen"
+                    className={`absolute inset-0 w-full h-full transition-opacity duration-150 ${
+                      angle === activeAngle
+                        ? "opacity-100"
+                        : "opacity-0 pointer-events-none"
+                    }`}
+                  />
                 ))
               ) : (
                 <video
-                    src={resolveVideoSrc(activeVideo.url)}
-                    controls
-                    controlsList="nofullscreen"   // ✅
-                    preload="metadata"
-                    className="w-full h-full"
-                  />
-
+                  src={resolveVideoSrc(activeVideo.url)}
+                  controls
+                  controlsList="nofullscreen"
+                  preload="metadata"
+                  className="w-full h-full"
+                />
               )}
             </div>
 
@@ -221,17 +224,16 @@ export default function TrainingPage() {
               <div className="flex justify-center gap-3 py-3 bg-gray-50 border-t">
                 {Object.keys(activeVideo.angles).map((angle) => (
                   <button
-                    onClick={() => {
-                      const c = containerRef.current;
-                      if (!c) return;
-                      if (!document.fullscreenElement) c.requestFullscreen();
-                      else document.exitFullscreen();
-                    }}
-                    className="px-5 py-1.5 rounded-full text-sm font-semibold bg-black text-white"
+                    key={angle}
+                    onClick={() => switchAngle(angle)}
+                    className={`px-5 py-1.5 rounded-full text-sm font-semibold transition ${
+                      activeAngle === angle
+                        ? "bg-red-600 text-white shadow"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                    }`}
                   >
-                    Fullscreen
+                    Angle {angle}
                   </button>
-
                 ))}
               </div>
             )}
