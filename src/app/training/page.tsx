@@ -221,16 +221,17 @@ export default function TrainingPage() {
               <div className="flex justify-center gap-3 py-3 bg-gray-50 border-t">
                 {Object.keys(activeVideo.angles).map((angle) => (
                   <button
-                    key={angle}
-                    onClick={() => switchAngle(angle)}
-                    className={`px-5 py-1.5 rounded-full text-sm font-semibold transition ${
-                      activeAngle === angle
-                        ? "bg-red-600 text-white shadow"
-                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                    }`}
+                    onClick={() => {
+                      const c = containerRef.current;
+                      if (!c) return;
+                      if (!document.fullscreenElement) c.requestFullscreen();
+                      else document.exitFullscreen();
+                    }}
+                    className="px-5 py-1.5 rounded-full text-sm font-semibold bg-black text-white"
                   >
-                    Angle {angle}
+                    Fullscreen
                   </button>
+
                 ))}
               </div>
             )}
