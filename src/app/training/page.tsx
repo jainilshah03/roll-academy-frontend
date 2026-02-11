@@ -80,9 +80,9 @@ export default function TrainingPage() {
     videoRefs.current = {};
   }
 
-  /* ================= ANGLE SWITCH ================= */
+  /* ================= ANGLE SWITCH (SMOOTH) ================= */
   function switchAngle(angle: string) {
-    if (!activeVideo?.angles) return;
+    if (!activeVideo?.angles || angle === activeAngle) return;
 
     const current = videoRefs.current[activeAngle];
     const next = videoRefs.current[angle];
@@ -90,12 +90,21 @@ export default function TrainingPage() {
 
     const time = current.currentTime;
     const wasPlaying = !current.paused;
+    const rate = current.playbackRate;
 
+    // Prepare next before switching
     next.currentTime = time;
-    if (wasPlaying) next.play().catch(() => {});
+    next.playbackRate = rate;
 
-    current.pause();
+    // Switch visible video FIRST (prevents fullscreen glitch)
     setActiveAngle(angle);
+
+    if (wasPlaying) {
+      next.play().catch(() => {});
+    }
+
+    // Pause old one after switch (prevents flicker)
+    current.pause();
   }
 
   /* ================= KEEP ANGLES SYNCED ================= */
@@ -112,11 +121,11 @@ export default function TrainingPage() {
       });
     };
 
-    active.addEventListener("play", syncOthers);
+    active.addEventListener("timeupdate", syncOthers);
     active.addEventListener("seeked", syncOthers);
 
     return () => {
-      active.removeEventListener("play", syncOthers);
+      active.removeEventListener("timeupdate", syncOthers);
       active.removeEventListener("seeked", syncOthers);
     };
   }, [activeVideo, activeAngle]);
@@ -128,19 +137,20 @@ export default function TrainingPage() {
 
       const key = e.key.toUpperCase();
 
-      // A / B / C / D → switch angle
+      // Angle shortcuts
       if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
+        e.preventDefault();
         switchAngle(key);
       }
 
-      // F → fullscreen (IMPORTANT: container, not video)
+      // F → fullscreen container (only if not using native video fullscreen)
       if (key === "F") {
         const container = containerRef.current;
         if (!container) return;
 
         if (!document.fullscreenElement) {
           container.requestFullscreen?.();
-        } else {
+        } else if (document.fullscreenElement === container) {
           document.exitFullscreen?.();
         }
       }
