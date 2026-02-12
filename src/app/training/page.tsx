@@ -14,7 +14,6 @@ type ApiVideo = {
 const GYM_ID = "cmjicg6ss00008zwx98ga6gf2";
 const ANGLE_KEYS = ["A", "B", "C", "D"] as const;
 
-/* ================= URL RESOLVER ================= */
 function resolveVideoSrc(src?: string | null) {
   if (!src) return "";
   if (src.startsWith("http")) return src;
@@ -34,14 +33,25 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true);
   const [showLockModal, setShowLockModal] = useState(false);
 
-  // 🔥 Track stable fullscreen state
+  // Track stable fullscreen state (container-based)
   const [isFs, setIsFs] = useState(false);
 
+  /* ================= SYNC FULLSCREEN (VIDEO ⛶ + F KEY) ================= */
   useEffect(() => {
     function onFsChange() {
-      const el = containerRef.current;
-      setIsFs(!!el && document.fullscreenElement === el);
+      const container = containerRef.current;
+
+      // If user fullscreened the VIDEO, mirror to container fullscreen
+      if (document.fullscreenElement instanceof HTMLVideoElement && container) {
+        container.requestFullscreen?.();
+        setIsFs(true);
+        return;
+      }
+
+      // Update state when container enters/exits fullscreen
+      setIsFs(!!container && document.fullscreenElement === container);
     }
+
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
@@ -110,7 +120,7 @@ export default function TrainingPage() {
 
     setActiveAngle(angle);
 
-    // 🔥 Force fullscreen compositor refresh (prevents black screen)
+    // Fix fullscreen compositor glitch
     requestAnimationFrame(() => {
       const el = videoRefs.current[angle];
       el?.dispatchEvent(new Event("resize"));
@@ -133,9 +143,7 @@ export default function TrainingPage() {
       Object.entries(videoRefs.current).forEach(([angle, vid]) => {
         if (!vid || angle === activeAngle) return;
         const drift = Math.abs(vid.currentTime - active.currentTime);
-        if (drift > 0.08) {
-          vid.currentTime = active.currentTime;
-        }
+        if (drift > 0.08) vid.currentTime = active.currentTime;
       });
       raf = requestAnimationFrame(syncOthers);
     };
@@ -152,9 +160,6 @@ export default function TrainingPage() {
       const key = e.key.toUpperCase();
       const current = videoRefs.current[activeAngle];
 
-      // ⛔️ Ignore shortcuts during fullscreen transition
-      if (document.fullscreenElement && !isFs) return;
-
       // Spacebar → play / pause
       if (e.code === "Space") {
         e.preventDefault();
@@ -170,7 +175,7 @@ export default function TrainingPage() {
         return;
       }
 
-      // F → toggle fullscreen
+      // F → toggle fullscreen (container)
       if (key === "F") {
         e.preventDefault();
         const container = containerRef.current;
@@ -209,10 +214,7 @@ export default function TrainingPage() {
 
         {activeVideo && (
           <div className="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div
-              ref={containerRef}
-              className="relative w-full aspect-video bg-black"
-            >
+            <div ref={containerRef} className="relative w-full aspect-video bg-black">
               {activeVideo.angles ? (
                 Object.entries(activeVideo.angles).map(([angle, src]) => (
                   <video
