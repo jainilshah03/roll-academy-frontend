@@ -82,7 +82,7 @@ export const Header = () => {
         </div>
 
         {/* ================= MAIN NAV ================= */}
-        <div className="container mx-auto px-4 sm:px-6 py-3">
+        <div className="container mx-auto px-4 sm:px-6 py-4 md:py-3">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
@@ -99,8 +99,9 @@ export const Header = () => {
 
             {/* Mobile menu button */}
             <button
-              className="md:hidden w-10 h-10 flex items-center justify-center text-red-700"
+              className="md:hidden w-11 h-11 flex items-center justify-center text-red-700 rounded-lg hover:bg-red-50"
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Open menu"
             >
               <MenuIcon />
             </button>
@@ -141,7 +142,7 @@ export const Header = () => {
                     {userInitial}
                   </button>
 
-                  {/* ✅ DESKTOP DROPDOWN */}
+                  {/* Desktop dropdown */}
                   <AnimatePresence>
                     {showMenu && (
                       <motion.div
@@ -178,9 +179,8 @@ export const Header = () => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="md:hidden bg-white border-t flex flex-col gap-5 py-6 px-6"
+              className="md:hidden bg-white border-t flex flex-col gap-4 py-5 px-6 rounded-b-2xl shadow-lg"
             >
-              {/* User info (mobile) */}
               {user && (
                 <div className="flex items-center gap-3 pb-4 border-b">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 text-white font-bold flex items-center justify-center">
@@ -202,7 +202,7 @@ export const Header = () => {
                   key={link.name}
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
-                  className="uppercase font-semibold text-gray-800 text-base"
+                  className="uppercase font-semibold text-gray-900 text-base py-2 border-b last:border-none"
                 >
                   {link.name}
                 </Link>
@@ -210,7 +210,7 @@ export const Header = () => {
 
               {!user ? (
                 <Link href="/auth/signin">
-                  <button className="mt-2 bg-red-700 text-white px-8 py-3 rounded-lg font-bold w-full">
+                  <button className="mt-4 bg-red-700 text-white px-8 py-3 rounded-xl font-bold w-full shadow-md">
                     Sign In
                   </button>
                 </Link>
@@ -220,7 +220,7 @@ export const Header = () => {
                     setMenuOpen(false);
                     setShowLogoutConfirm(true);
                   }}
-                  className="mt-2 w-full text-left px-4 py-3 rounded-lg font-semibold text-red-600 hover:bg-gray-100"
+                  className="mt-4 w-full text-left px-4 py-3 rounded-xl font-semibold text-red-600 hover:bg-gray-100 border"
                 >
                   Logout
                 </button>
@@ -230,7 +230,7 @@ export const Header = () => {
         </AnimatePresence>
       </motion.header>
 
-      {/* ================= LOGOUT MODAL (UNCHANGED) ================= */}
+      {/* ================= LOGOUT MODAL ================= */}
       <AnimatePresence>
         {showLogoutConfirm && (
           <motion.div
