@@ -14,6 +14,7 @@ type ApiVideo = {
 const GYM_ID = "cmjicg6ss00008zwx98ga6gf2";
 const ANGLE_KEYS = ["A", "B", "C", "D"] as const;
 
+/* ================= URL RESOLVER ================= */
 function resolveVideoSrc(src?: string | null) {
   if (!src) return "";
   if (src.startsWith("http")) return src;
@@ -32,6 +33,18 @@ export default function TrainingPage() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showLockModal, setShowLockModal] = useState(false);
+
+  // 🔥 Track stable fullscreen state
+  const [isFs, setIsFs] = useState(false);
+
+  useEffect(() => {
+    function onFsChange() {
+      const el = containerRef.current;
+      setIsFs(!!el && document.fullscreenElement === el);
+    }
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   /* ================= FETCH VIDEOS ================= */
   useEffect(() => {
@@ -97,16 +110,13 @@ export default function TrainingPage() {
 
     setActiveAngle(angle);
 
-    // 🔥 Fix fullscreen compositor glitch
+    // 🔥 Force fullscreen compositor refresh (prevents black screen)
     requestAnimationFrame(() => {
       const el = videoRefs.current[angle];
       el?.dispatchEvent(new Event("resize"));
     });
 
-    if (wasPlaying) {
-      next.play().catch(() => {});
-    }
-
+    if (wasPlaying) next.play().catch(() => {});
     setTimeout(() => current.pause(), 0);
   }
 
@@ -122,13 +132,11 @@ export default function TrainingPage() {
     const syncOthers = () => {
       Object.entries(videoRefs.current).forEach(([angle, vid]) => {
         if (!vid || angle === activeAngle) return;
-
         const drift = Math.abs(vid.currentTime - active.currentTime);
         if (drift > 0.08) {
           vid.currentTime = active.currentTime;
         }
       });
-
       raf = requestAnimationFrame(syncOthers);
     };
 
@@ -137,50 +145,48 @@ export default function TrainingPage() {
   }, [activeVideo, activeAngle]);
 
   /* ================= KEYBOARD SHORTCUTS ================= */
-useEffect(() => {
-  function onKeyDown(e: KeyboardEvent) {
-    if (!activeVideo?.angles) return;
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!activeVideo?.angles) return;
 
-    const container = containerRef.current;
-    const inFs = !!container && document.fullscreenElement === container;
-
-    const key = e.key.toUpperCase();
-
-    // Spacebar → play / pause (works in normal + fullscreen)
-    if (e.code === "Space") {
-      e.preventDefault();
+      const key = e.key.toUpperCase();
       const current = videoRefs.current[activeAngle];
-      if (!current) return;
-      current.paused ? current.play().catch(() => {}) : current.pause();
-      return;
-    }
 
-    // A/B/C/D → switch angle (allow in fullscreen too)
-    if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
-      e.preventDefault();
-      switchAngle(key);
-      return;
-    }
+      // ⛔️ Ignore shortcuts during fullscreen transition
+      if (document.fullscreenElement && !isFs) return;
 
-    // F → toggle fullscreen (guard only for toggle)
-    if (key === "F") {
-      e.preventDefault();
-      if (!container) return;
+      // Spacebar → play / pause
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!current) return;
+        current.paused ? current.play().catch(() => {}) : current.pause();
+        return;
+      }
 
-      // Prevent toggling during transition glitches
-      if (document.fullscreenElement && !inFs) return;
+      // A/B/C/D → switch angle
+      if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
+        e.preventDefault();
+        switchAngle(key);
+        return;
+      }
 
-      if (!document.fullscreenElement) {
-        container.requestFullscreen?.();
-      } else if (inFs) {
-        document.exitFullscreen?.();
+      // F → toggle fullscreen
+      if (key === "F") {
+        e.preventDefault();
+        const container = containerRef.current;
+        if (!container) return;
+
+        if (!document.fullscreenElement) {
+          container.requestFullscreen?.();
+        } else if (isFs) {
+          document.exitFullscreen?.();
+        }
       }
     }
-  }
 
-  window.addEventListener("keydown", onKeyDown);
-  return () => window.removeEventListener("keydown", onKeyDown);
-}, [activeVideo, activeAngle]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeVideo, activeAngle, isFs]);
 
   function goToPricing() {
     router.push("/#pricing");
