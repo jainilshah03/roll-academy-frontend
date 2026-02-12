@@ -14,7 +14,6 @@ type ApiVideo = {
 const GYM_ID = "cmjicg6ss00008zwx98ga6gf2";
 const ANGLE_KEYS = ["A", "B", "C", "D"] as const;
 
-/* ================= URL RESOLVER ================= */
 function resolveVideoSrc(src?: string | null) {
   if (!src) return "";
   if (src.startsWith("http")) return src;
@@ -34,10 +33,8 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true);
   const [showLockModal, setShowLockModal] = useState(false);
 
-  /* ================= FETCH VIDEOS ================= */
   useEffect(() => {
     let mounted = true;
-
     async function loadVideos() {
       try {
         const res = await fetch("/api/videos", { credentials: "include" });
@@ -47,17 +44,14 @@ export default function TrainingPage() {
         if (mounted) setVideos([]);
       }
     }
-
     loadVideos();
     const t = setTimeout(loadVideos, 12000);
-
     return () => {
       mounted = false;
       clearTimeout(t);
     };
   }, []);
 
-  /* ================= CHECK SUBSCRIPTION ================= */
   useEffect(() => {
     fetch(`/api/subscriptions/status?gymId=${GYM_ID}`, {
       credentials: "include",
@@ -68,19 +62,16 @@ export default function TrainingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  /* ================= VIDEO CLICK ================= */
   function handleVideoClick(video: ApiVideo) {
     if (video.visibility === "PRIVATE" && !isSubscribed) {
       setShowLockModal(true);
       return;
     }
-
     setActiveVideo(video);
     setActiveAngle("A");
     videoRefs.current = {};
   }
 
-  /* ================= ANGLE SWITCH (ULTRA SMOOTH) ================= */
   function switchAngle(angle: string) {
     if (!activeVideo?.angles || angle === activeAngle) return;
 
@@ -92,44 +83,31 @@ export default function TrainingPage() {
     const wasPlaying = !current.paused;
     const rate = current.playbackRate;
 
-    // Pre-sync BEFORE switching UI
     next.pause();
     next.currentTime = time;
     next.playbackRate = rate;
 
-    // Switch visible angle
     setActiveAngle(angle);
 
-    if (wasPlaying) {
-      next.play().catch(() => {});
-    }
-
-    // Pause old one after switch (no flicker)
+    if (wasPlaying) next.play().catch(() => {});
     setTimeout(() => current.pause(), 0);
   }
 
-  /* ================= KEEP ANGLES PERFECTLY SYNCED ================= */
   useEffect(() => {
     if (!activeVideo?.angles) return;
-
     const active = videoRefs.current[activeAngle];
     if (!active) return;
 
     let raf: number;
-
     const syncOthers = () => {
       Object.entries(videoRefs.current).forEach(([angle, vid]) => {
         if (!vid || angle === activeAngle) return;
-
-        const drift = Math.abs(vid.currentTime - active.currentTime);
-        if (drift > 0.08) {
+        if (Math.abs(vid.currentTime - active.currentTime) > 0.08) {
           vid.currentTime = active.currentTime;
         }
       });
-
       raf = requestAnimationFrame(syncOthers);
     };
-
     raf = requestAnimationFrame(syncOthers);
     return () => cancelAnimationFrame(raf);
   }, [activeVideo, activeAngle]);
@@ -140,6 +118,14 @@ export default function TrainingPage() {
       if (!activeVideo?.angles) return;
 
       const key = e.key.toUpperCase();
+
+      // Spacebar → play / pause
+      if (e.code === "Space") {
+        e.preventDefault();
+        const current = videoRefs.current[activeAngle];
+        if (!current) return;
+        current.paused ? current.play().catch(() => {}) : current.pause();
+      }
 
       // A/B/C/D → switch angle
       if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
@@ -185,10 +171,7 @@ export default function TrainingPage() {
 
         {activeVideo && (
           <div className="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div
-              ref={containerRef}
-              className="relative w-full aspect-video bg-black"
-            >
+            <div ref={containerRef} className="relative w-full aspect-video bg-black">
               {activeVideo.angles ? (
                 Object.entries(activeVideo.angles).map(([angle, src]) => (
                   <video
@@ -201,7 +184,6 @@ export default function TrainingPage() {
                     playsInline
                     muted
                     controls={angle === activeAngle}
-                    controlsList="nofullscreen"
                     className={`absolute inset-0 w-full h-full transition-opacity duration-150 ${
                       angle === activeAngle
                         ? "opacity-100"
@@ -213,7 +195,6 @@ export default function TrainingPage() {
                 <video
                   src={resolveVideoSrc(activeVideo.url)}
                   controls
-                  controlsList="nofullscreen"
                   preload="metadata"
                   className="w-full h-full"
                 />
@@ -243,7 +224,7 @@ export default function TrainingPage() {
                 {activeVideo.title}
               </h2>
               <p className="text-xs text-gray-500 mt-1">
-                Keyboard: A / B / C / D • Fullscreen: F
+                Keyboard: A / B / C / D • Fullscreen: F • Space: Play/Pause
               </p>
             </div>
           </div>
@@ -291,7 +272,6 @@ export default function TrainingPage() {
         </div>
       </div>
 
-      {/* ================= LOCK MODAL ================= */}
       {showLockModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-[90%] text-center">
