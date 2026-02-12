@@ -33,8 +33,10 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true);
   const [showLockModal, setShowLockModal] = useState(false);
 
+  /* ================= FETCH VIDEOS ================= */
   useEffect(() => {
     let mounted = true;
+
     async function loadVideos() {
       try {
         const res = await fetch("/api/videos", { credentials: "include" });
@@ -44,14 +46,17 @@ export default function TrainingPage() {
         if (mounted) setVideos([]);
       }
     }
+
     loadVideos();
     const t = setTimeout(loadVideos, 12000);
+
     return () => {
       mounted = false;
       clearTimeout(t);
     };
   }, []);
 
+  /* ================= CHECK SUBSCRIPTION ================= */
   useEffect(() => {
     fetch(`/api/subscriptions/status?gymId=${GYM_ID}`, {
       credentials: "include",
@@ -62,16 +67,19 @@ export default function TrainingPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  /* ================= VIDEO CLICK ================= */
   function handleVideoClick(video: ApiVideo) {
     if (video.visibility === "PRIVATE" && !isSubscribed) {
       setShowLockModal(true);
       return;
     }
+
     setActiveVideo(video);
     setActiveAngle("A");
     videoRefs.current = {};
   }
 
+  /* ================= ANGLE SWITCH (ULTRA SMOOTH) ================= */
   function switchAngle(angle: string) {
     if (!activeVideo?.angles || angle === activeAngle) return;
 
@@ -89,25 +97,41 @@ export default function TrainingPage() {
 
     setActiveAngle(angle);
 
-    if (wasPlaying) next.play().catch(() => {});
+    // 🔥 Force fullscreen compositor refresh (prevents black screen)
+    requestAnimationFrame(() => {
+      const el = videoRefs.current[angle];
+      el?.dispatchEvent(new Event("resize"));
+    });
+
+    if (wasPlaying) {
+      next.play().catch(() => {});
+    }
+
     setTimeout(() => current.pause(), 0);
   }
 
+  /* ================= KEEP ANGLES PERFECTLY SYNCED ================= */
   useEffect(() => {
     if (!activeVideo?.angles) return;
+
     const active = videoRefs.current[activeAngle];
     if (!active) return;
 
     let raf: number;
+
     const syncOthers = () => {
       Object.entries(videoRefs.current).forEach(([angle, vid]) => {
         if (!vid || angle === activeAngle) return;
-        if (Math.abs(vid.currentTime - active.currentTime) > 0.08) {
+
+        const drift = Math.abs(vid.currentTime - active.currentTime);
+        if (drift > 0.08) {
           vid.currentTime = active.currentTime;
         }
       });
+
       raf = requestAnimationFrame(syncOthers);
     };
+
     raf = requestAnimationFrame(syncOthers);
     return () => cancelAnimationFrame(raf);
   }, [activeVideo, activeAngle]);
@@ -171,7 +195,10 @@ export default function TrainingPage() {
 
         {activeVideo && (
           <div className="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div ref={containerRef} className="relative w-full aspect-video bg-black">
+            <div
+              ref={containerRef}
+              className="relative w-full aspect-video bg-black"
+            >
               {activeVideo.angles ? (
                 Object.entries(activeVideo.angles).map(([angle, src]) => (
                   <video
@@ -184,10 +211,10 @@ export default function TrainingPage() {
                     playsInline
                     muted
                     controls={angle === activeAngle}
-                    className={`absolute inset-0 w-full h-full transition-opacity duration-150 ${
+                    className={`absolute inset-0 w-full h-full ${
                       angle === activeAngle
-                        ? "opacity-100"
-                        : "opacity-0 pointer-events-none"
+                        ? "visible z-10"
+                        : "invisible z-0 pointer-events-none"
                     }`}
                   />
                 ))
@@ -272,6 +299,7 @@ export default function TrainingPage() {
         </div>
       </div>
 
+      {/* ================= LOCK MODAL ================= */}
       {showLockModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-[90%] text-center">
