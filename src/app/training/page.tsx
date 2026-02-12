@@ -137,49 +137,50 @@ export default function TrainingPage() {
   }, [activeVideo, activeAngle]);
 
   /* ================= KEYBOARD SHORTCUTS ================= */
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (!activeVideo?.angles) return;
+useEffect(() => {
+  function onKeyDown(e: KeyboardEvent) {
+    if (!activeVideo?.angles) return;
 
-      const container = containerRef.current;
-      const inFs = !!container && document.fullscreenElement === container;
+    const container = containerRef.current;
+    const inFs = !!container && document.fullscreenElement === container;
 
-      const key = e.key.toUpperCase();
+    const key = e.key.toUpperCase();
 
-      // Spacebar → play / pause
-      if (e.code === "Space") {
-        e.preventDefault();
-        const current = videoRefs.current[activeAngle];
-        if (!current) return;
-        current.paused ? current.play().catch(() => {}) : current.pause();
-        return;
-      }
-
-      // A/B/C/D → switch angle
-      if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
-        e.preventDefault();
-        if (document.fullscreenElement && !inFs) return; // guard fullscreen transition
-        switchAngle(key);
-        return;
-      }
-
-      // F → toggle fullscreen
-      if (key === "F") {
-        e.preventDefault();
-        if (!container) return;
-        if (document.fullscreenElement && !inFs) return; // guard fullscreen transition
-
-        if (!document.fullscreenElement) {
-          container.requestFullscreen?.();
-        } else if (inFs) {
-          document.exitFullscreen?.();
-        }
-      }
+    // Spacebar → play / pause (works in normal + fullscreen)
+    if (e.code === "Space") {
+      e.preventDefault();
+      const current = videoRefs.current[activeAngle];
+      if (!current) return;
+      current.paused ? current.play().catch(() => {}) : current.pause();
+      return;
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeVideo, activeAngle]);
+    // A/B/C/D → switch angle (allow in fullscreen too)
+    if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
+      e.preventDefault();
+      switchAngle(key);
+      return;
+    }
+
+    // F → toggle fullscreen (guard only for toggle)
+    if (key === "F") {
+      e.preventDefault();
+      if (!container) return;
+
+      // Prevent toggling during transition glitches
+      if (document.fullscreenElement && !inFs) return;
+
+      if (!document.fullscreenElement) {
+        container.requestFullscreen?.();
+      } else if (inFs) {
+        document.exitFullscreen?.();
+      }
+    }
+  }
+
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
+}, [activeVideo, activeAngle]);
 
   function goToPricing() {
     router.push("/#pricing");
