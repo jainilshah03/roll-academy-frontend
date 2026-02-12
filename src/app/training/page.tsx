@@ -97,7 +97,7 @@ export default function TrainingPage() {
 
     setActiveAngle(angle);
 
-    // 🔥 Force fullscreen compositor refresh (prevents black screen)
+    // 🔥 Fix fullscreen compositor glitch
     requestAnimationFrame(() => {
       const el = videoRefs.current[angle];
       el?.dispatchEvent(new Event("resize"));
@@ -141,6 +141,9 @@ export default function TrainingPage() {
     function onKeyDown(e: KeyboardEvent) {
       if (!activeVideo?.angles) return;
 
+      const container = containerRef.current;
+      const inFs = !!container && document.fullscreenElement === container;
+
       const key = e.key.toUpperCase();
 
       // Spacebar → play / pause
@@ -149,22 +152,26 @@ export default function TrainingPage() {
         const current = videoRefs.current[activeAngle];
         if (!current) return;
         current.paused ? current.play().catch(() => {}) : current.pause();
+        return;
       }
 
       // A/B/C/D → switch angle
       if (ANGLE_KEYS.includes(key as any) && activeVideo.angles[key]) {
         e.preventDefault();
+        if (document.fullscreenElement && !inFs) return; // guard fullscreen transition
         switchAngle(key);
+        return;
       }
 
-      // F → fullscreen container
+      // F → toggle fullscreen
       if (key === "F") {
-        const container = containerRef.current;
+        e.preventDefault();
         if (!container) return;
+        if (document.fullscreenElement && !inFs) return; // guard fullscreen transition
 
         if (!document.fullscreenElement) {
           container.requestFullscreen?.();
-        } else if (document.fullscreenElement === container) {
+        } else if (inFs) {
           document.exitFullscreen?.();
         }
       }
