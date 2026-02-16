@@ -40,7 +40,10 @@ export const Header = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("/api/me", { credentials: "include" });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/me`, {
+                  credentials: "include",
+                });
+
         if (res.ok) {
           const data = await res.json();
           setUser(data.user);
