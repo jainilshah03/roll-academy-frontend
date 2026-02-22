@@ -106,36 +106,54 @@ export default function TrainingPage() {
   function switchAngle(angle: string) {
     if (!activeVideo?.angles || angle === activeAngle) return;
 
-    const current = videoRefs.current[activeAngle];
-    const next = videoRefs.current[angle];
-    if (!current || !next) return;
+    const vCurrent = videoRefs.current[activeAngle];
+    const vNext = videoRefs.current[angle];
+    if (!vCurrent || !vNext) return;
 
-    const isVideoFs = document.fullscreenElement === current;
+    const isVideoFs = document.fullscreenElement === vCurrent;
 
-    const time = current.currentTime;
-    const wasPlaying = !current.paused;
-    const rate = current.playbackRate;
+    const time = vCurrent.currentTime;
+    const wasPlaying = !vCurrent.paused;
+    const rate = vCurrent.playbackRate;
 
-    next.pause();
-    next.currentTime = time;
-    next.playbackRate = rate;
+    // Pause the old video immediately to release the media decoder lock
+    vCurrent.pause();
+
+    // Set properties on the new video
+    vNext.currentTime = time;
+    vNext.playbackRate = rate;
 
     setActiveAngle(angle);
 
-    if (isVideoFs && containerRef.current) {
-      // Seamlessly upgrade to container fullscreen so we don't drop out of fullscreen
-      // when the native video element becomes invisible upon switching.
-      containerRef.current.requestFullscreen?.().catch(() => { });
+    if (isVideoFs) {
+      // If the specific video tag was natively fullscreened, we MUST explicitly exit its
+      // fullscreen state before hiding it via opacity-0, otherwise the browser will permanently 
+      // lock its frame buffer black as an aborted fullscreen transition.
+      document.exitFullscreen?.().then(() => {
+        if (containerRef.current) {
+          // Seamlessly upgrade to container fullscreen once the element is released
+          containerRef.current.requestFullscreen?.().catch(() => { });
+        }
+      }).catch(() => { });
     }
 
-    // Fix fullscreen compositor glitch
-    requestAnimationFrame(() => {
-      const el = videoRefs.current[angle];
-      el?.dispatchEvent(new Event("resize"));
-    });
+    // Force Safari/iOS to draw the frame before trying to play it
+    const playNext = () => {
+      if (wasPlaying) {
+        vNext.play().catch(() => {
+          // If autoplay gets blocked, try to load the frame manually
+          vNext.load();
+          vNext.currentTime = time;
+        });
+      }
+    };
 
-    if (wasPlaying) next.play().catch(() => { });
-    setTimeout(() => current.pause(), 0);
+    // Fix fullscreen compositor glitch and trigger play
+    requestAnimationFrame(() => {
+      vNext.dispatchEvent(new Event("resize"));
+      // Delay play slightly so CSS opacity has time to apply and WebKit doesn't drop the frame
+      setTimeout(playNext, 50);
+    });
   }
 
   /* ================= KEEP ANGLES PERFECTLY SYNCED ================= */
@@ -294,9 +312,9 @@ export default function TrainingPage() {
                     playsInline
                     muted
                     controls={angle === activeAngle}
-                    className={`absolute inset-0 w-full h-full ${angle === activeAngle
-                      ? "visible z-10"
-                      : "invisible z-0 pointer-events-none"
+                    className={`absolute inset-0 w-full h-full transition-opacity duration-150 ${angle === activeAngle
+                      ? "opacity-100 z-10"
+                      : "opacity-0 z-0 pointer-events-none"
                       }`}
                   />
                 ))
