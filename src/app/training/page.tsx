@@ -207,6 +207,58 @@ export default function TrainingPage() {
     router.push("/#pricing");
   }
 
+  /* ================= TOUCH SWIPE LOGIC ================= */
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const touchStartTimeRef = useRef<number | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (!activeVideo?.angles) return;
+    touchStartXRef.current = e.changedTouches[0].clientX;
+    touchStartYRef.current = e.changedTouches[0].clientY;
+    touchStartTimeRef.current = Date.now();
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (
+      touchStartXRef.current === null ||
+      touchStartYRef.current === null ||
+      touchStartTimeRef.current === null ||
+      !activeVideo?.angles
+    ) {
+      return;
+    }
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const touchEndTime = Date.now();
+
+    const diffX = touchStartXRef.current - touchEndX;
+    const diffY = touchStartYRef.current - touchEndY;
+    const timeDiff = touchEndTime - touchStartTimeRef.current;
+
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    touchStartTimeRef.current = null;
+
+    // Ignore if touch takes too long (e.g. holding down), or if they swiped vertically
+    if (timeDiff > 500 || Math.abs(diffY) > 50) return;
+
+    const SWIPE_THRESHOLD = 40;
+
+    // Use ANGLE_KEYS to maintain logical A -> B -> C -> D order
+    const availableAngles = ANGLE_KEYS.filter((k) => activeVideo.angles![k]);
+    const currentIndex = availableAngles.indexOf(activeAngle as any);
+
+    if (diffX > SWIPE_THRESHOLD && currentIndex < availableAngles.length - 1) {
+      // Swiped left -> next angle
+      switchAngle(availableAngles[currentIndex + 1]);
+    } else if (diffX < -SWIPE_THRESHOLD && currentIndex > 0) {
+      // Swiped right -> previous angle
+      switchAngle(availableAngles[currentIndex - 1]);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600">
@@ -224,7 +276,12 @@ export default function TrainingPage() {
 
         {activeVideo && (
           <div className="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div ref={containerRef} className="relative w-full aspect-video bg-black">
+            <div
+              ref={containerRef}
+              className="relative w-full aspect-video bg-black touch-pan-y"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               {activeVideo.angles ? (
                 Object.entries(activeVideo.angles).map(([angle, src]) => (
                   <video
