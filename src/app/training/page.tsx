@@ -110,6 +110,8 @@ export default function TrainingPage() {
     const next = videoRefs.current[angle];
     if (!current || !next) return;
 
+    const isVideoFs = document.fullscreenElement === current;
+
     const time = current.currentTime;
     const wasPlaying = !current.paused;
     const rate = current.playbackRate;
@@ -120,13 +122,19 @@ export default function TrainingPage() {
 
     setActiveAngle(angle);
 
+    if (isVideoFs && containerRef.current) {
+      // Seamlessly upgrade to container fullscreen so we don't drop out of fullscreen
+      // when the native video element becomes invisible upon switching.
+      containerRef.current.requestFullscreen?.().catch(() => { });
+    }
+
     // Fix fullscreen compositor glitch
     requestAnimationFrame(() => {
       const el = videoRefs.current[angle];
       el?.dispatchEvent(new Event("resize"));
     });
 
-    if (wasPlaying) next.play().catch(() => {});
+    if (wasPlaying) next.play().catch(() => { });
     setTimeout(() => current.pause(), 0);
   }
 
@@ -137,19 +145,21 @@ export default function TrainingPage() {
     const active = videoRefs.current[activeAngle];
     if (!active) return;
 
-    let raf: number;
+    let timer: any;
 
     const syncOthers = () => {
       Object.entries(videoRefs.current).forEach(([angle, vid]) => {
         if (!vid || angle === activeAngle) return;
+        // Only sync if significant drift occurs (e.g. after seeking), preventing
+        // CPU locks from continuously scrubbing paused background videos
         const drift = Math.abs(vid.currentTime - active.currentTime);
-        if (drift > 0.08) vid.currentTime = active.currentTime;
+        if (drift > 0.3) vid.currentTime = active.currentTime;
       });
-      raf = requestAnimationFrame(syncOthers);
+      timer = setTimeout(syncOthers, 1000);
     };
 
-    raf = requestAnimationFrame(syncOthers);
-    return () => cancelAnimationFrame(raf);
+    timer = setTimeout(syncOthers, 1000);
+    return () => clearTimeout(timer);
   }, [activeVideo, activeAngle]);
 
   /* ================= KEYBOARD SHORTCUTS ================= */
@@ -164,7 +174,7 @@ export default function TrainingPage() {
       if (e.code === "Space") {
         e.preventDefault();
         if (!current) return;
-        current.paused ? current.play().catch(() => {}) : current.pause();
+        current.paused ? current.play().catch(() => { }) : current.pause();
         return;
       }
 
@@ -227,11 +237,10 @@ export default function TrainingPage() {
                     playsInline
                     muted
                     controls={angle === activeAngle}
-                    className={`absolute inset-0 w-full h-full ${
-                      angle === activeAngle
-                        ? "visible z-10"
-                        : "invisible z-0 pointer-events-none"
-                    }`}
+                    className={`absolute inset-0 w-full h-full ${angle === activeAngle
+                      ? "visible z-10"
+                      : "invisible z-0 pointer-events-none"
+                      }`}
                   />
                 ))
               ) : (
@@ -250,11 +259,10 @@ export default function TrainingPage() {
                   <button
                     key={angle}
                     onClick={() => switchAngle(angle)}
-                    className={`px-5 py-1.5 rounded-full text-sm font-semibold transition ${
-                      activeAngle === angle
-                        ? "bg-red-600 text-white shadow"
-                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                    }`}
+                    className={`px-5 py-1.5 rounded-full text-sm font-semibold transition ${activeAngle === angle
+                      ? "bg-red-600 text-white shadow"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                      }`}
                   >
                     Angle {angle}
                   </button>
@@ -292,9 +300,8 @@ export default function TrainingPage() {
                     muted
                     preload="metadata"
                     playsInline
-                    className={`w-full h-full object-cover ${
-                      locked ? "blur-md" : ""
-                    }`}
+                    className={`w-full h-full object-cover ${locked ? "blur-md" : ""
+                      }`}
                   />
 
                   {locked && (
